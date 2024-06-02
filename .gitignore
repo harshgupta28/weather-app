@@ -1,0 +1,19 @@
+# Dependency directories
+node_modules/
+
+package-lock.json
+
+# Logs
+logs/
+*.log
+
+# Transpiled output
+dist/
+build/
+out/
+
+# Misc
+.env
+
+# Editor/IDE
+.vscode/
