@@ -1,7 +1,8 @@
 **Real-time Weather Forecast API**
 
 *Overview*
-The Real-time Weather Forecast API is a RESTful service that allows users to manage locations and retrieve real-time weather forecasts for specified locations. The API integrates with an external weather service to fetch current weather data and supports operations for adding, retrieving, updating, and deleting locations.
+    
+    The Real-time Weather Forecast API is a RESTful service that allows users to manage locations and retrieve real-time weather forecasts for specified locations. The API integrates with an external weather service to fetch current weather data and supports operations for adding, retrieving, updating, and deleting locations.
 
 *Features*
 
