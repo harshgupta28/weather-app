@@ -3,9 +3,15 @@ const logger = require("../common/logger");
 const Location = require("../models/location");
 const redisClient = require("../common/redisClient");
 const { DEFAULT_COUNTRY_CODE } = require("../common/constant");
+const InvalidLocationIdError = require("../common/invalidLocationError");
+const InvalidPayloadError = require("../common/invalidPayLoad");
+const { HttpStatusCode } = require("axios");
+const { isValidObjectId } = require("../common/helper");
 
 const getAllLocations = async () => {
   try {
+    logger.info("Fetching all locations...");
+
     const cacheKey = "locations";
     const cachedLocations = await redisClient.get(cacheKey);
 
@@ -16,9 +22,11 @@ const getAllLocations = async () => {
     const locations = await Location.find();
 
     await redisClient.setex(cacheKey, 600, JSON.stringify(locations)); // Cache for 10 minutes
+    logger.info("All locations fetched successfully.");
+
     return locations;
   } catch (error) {
-    console.error(
+    logger.error(
       `Error occurred while fetching all locations: ${error.message}`
     );
     throw error;
@@ -29,9 +37,12 @@ const addLocation = async (city) => {
   try {
     logger.info(`Adding Location: ${city}`);
 
-    // basic sanity
     if (!city) {
-      throw new Error("City not provided");
+      const errorMessage = "City not provided";
+      logger.error(errorMessage);
+      const error = new Error(errorMessage);
+      error.statusCode = HttpStatusCode.BadRequest;
+      throw error;
     }
 
     const countryCode = DEFAULT_COUNTRY_CODE;
@@ -43,12 +54,10 @@ const addLocation = async (city) => {
 
     try {
       response = await axios.get(geoCodingUrl);
-      logger.info(
-        `Successfully fetched data for location. Location: ${city}, url: ${geoCodingUrl}, response: ${response}`
-      );
+      logger.info(`Successfully fetched data for location: ${city}`);
     } catch (error) {
       logger.error(
-        `Failed to fetch data for location. Location: ${city}, url: ${geoCodingUrl}, error: ${error}`
+        `Failed to fetch data for location: ${city}, Error: ${error.message}`
       );
       throw error;
     }
@@ -56,9 +65,12 @@ const addLocation = async (city) => {
     const firstCity = response.data[0];
 
     if (!firstCity) {
-      const message = `Unable to find location: ${city}`;
-      logger.info(message);
-      return { message };
+      const errorMessage = `Unable to find location: ${city}`;
+      logger.error(errorMessage);
+      const error = new Error(errorMessage);
+      error.statusCode = HttpStatusCode.NoContent;
+
+      throw error;
     }
 
     const newLocation = await Location.create({
@@ -67,10 +79,8 @@ const addLocation = async (city) => {
       longitude: firstCity.lon,
     });
 
-    // Invalidate cache for locations since we've added a new one
-    await redisClient.del("locations");
-
-    logger.info(`Location added successfully: :${city}`);
+    await redisClient.del("locations"); // Invalidate cache for locations
+    logger.info(`Location added successfully: ${city}.`);
 
     return newLocation;
   } catch (error) {
@@ -79,8 +89,15 @@ const addLocation = async (city) => {
   }
 };
 
-const getLocationById = async (id, res) => {
+const getLocationById = async (id) => {
   try {
+    logger.info(`Fetching location by Id: ${id}`);
+
+    // payload sanity check
+    if (!isValidObjectId(id)) {
+      throw new InvalidPayloadError(id);
+    }
+
     const cacheKey = `location:${id}`;
     const cachedLocation = await redisClient.get(cacheKey);
 
@@ -90,15 +107,15 @@ const getLocationById = async (id, res) => {
 
     const location = await Location.findById(id).exec();
     if (!location) {
-      const errorMessage = "Location not found";
-      res.status(axios.HttpStatusCode.BadRequest).json({ error: errorMessage });
-      throw new Error(errorMessage);
+      throw new InvalidLocationIdError(id);
     }
 
     await redisClient.setex(cacheKey, 600, JSON.stringify(location)); // Cache for 10 minutes
+    logger.info(`Location fetched successfully for ID: ${id}`);
+
     return location;
   } catch (error) {
-    console.error(
+    logger.error(
       `Error occurred while fetching location by ID (${id}): ${error.message}`
     );
     throw error;
@@ -107,16 +124,27 @@ const getLocationById = async (id, res) => {
 
 const updateLocation = async (id, { name, latitude, longitude }) => {
   try {
+    logger.info(`Updating location: ${id}`);
+
+    // payload sanity check
+    if (!isValidObjectId(id)) {
+      throw new InvalidPayloadError(id);
+    }
+
     const updatedLocation = await Location.findByIdAndUpdate(
       id,
       { name, latitude, longitude },
       { new: true }
     );
 
-    // Update the cache
-    const cacheKey = `location:${id}`;
-    await redisClient.setex(cacheKey, 600, JSON.stringify(updatedLocation)); // Cache for 10 minutes
+    if (!updatedLocation) {
+      throw new InvalidLocationIdError(id);
+    }
 
+    const cacheKey = `location:${id}`;
+    await redisClient.del(cacheKey);
+
+    logger.info(`Location updated successfully: ${id}`);
     return updatedLocation;
   } catch (error) {
     logger.error(
@@ -128,13 +156,25 @@ const updateLocation = async (id, { name, latitude, longitude }) => {
 
 const deleteLocation = async (id) => {
   try {
-    await Location.findByIdAndDelete(id);
+    logger.info(`Deleting location: ${id}`);
 
-    // Clear the cache for the deleted location and all locations
-    await redisClient.del(`location:${id}`);
-    await redisClient.del("locations");
+    // payload sanity check
+    if (!isValidObjectId(id)) {
+      throw new InvalidPayloadError(id);
+    }
+
+    const isDeleted = await Location.findByIdAndDelete(id);
+
+    if (!isDeleted) {
+      throw new InvalidLocationIdError(id);
+    }
+
+    await redisClient.del(`location:${id}`); // Clear cache for deleted location
+    await redisClient.del("locations"); // Clear cache for all locations
+
+    logger.info(`Location deleted successfully: ${id}`);
   } catch (error) {
-    console.error(
+    logger.error(
       `Error occurred while deleting location (${id}): ${error.message}`
     );
     throw error;

@@ -2,13 +2,17 @@ const axios = require("axios");
 const Location = require("../models/location");
 const redisClient = require("../common/redisClient");
 const logger = require("../common/logger");
-const {
-  dateXDaysOlder,
-  throwInvalidLocationError,
-} = require("../common/helper");
+const { dateXDaysOlder, isValidObjectId } = require("../common/helper");
+const InvalidLocationIdError = require("../common/invalidLocationError");
+const InvalidPayloadError = require("../common/invalidPayLoad");
 
-const getWeatherByLocationId = async (id, res) => {
+const getWeatherByLocationId = async (id) => {
   logger.info(`Fetching weather for location id: ${id}`);
+
+  // payload sanity check
+  if (!isValidObjectId(id)) {
+    throw new InvalidPayloadError(id);
+  }
 
   const cacheKey = `weather:${id}`;
   const cachedWeather = await redisClient.get(cacheKey);
@@ -20,7 +24,7 @@ const getWeatherByLocationId = async (id, res) => {
   const location = await Location.findById(id);
 
   if (!location) {
-    throwInvalidLocationError(id, res);
+    throw new InvalidLocationIdError(id);
   }
 
   const weatherUrl = `${process.env.OPEN_WEATHER_BASE_URL}/data/3.0/onecall?lat=${location.latitude}&lon=${location.longitude}&appid=${process.env.WEATHER_API_KEY}`;
@@ -47,15 +51,20 @@ const getWeatherByLocationId = async (id, res) => {
   return weatherData;
 };
 
-const getWeatherHistory = async (id, summaryDays, res) => {
+const getWeatherHistory = async (id, summaryDays) => {
   logger.info(
     `Fetching weather history for location id: ${id} for last ${summaryDays} days`
   );
 
+  // payload sanity check
+  if (!isValidObjectId(id) || isPositiveInteger(summaryDays)) {
+    throw new InvalidPayloadError({ id, summaryDays });
+  }
+
   const location = await Location.findById(id);
 
   if (!location) {
-    throwInvalidLocationError(id, res);
+    throw new InvalidLocationIdError(id);
   }
 
   const summaryPromises = [];

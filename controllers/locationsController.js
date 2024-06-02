@@ -1,4 +1,4 @@
-const { default: axios, HttpStatusCode } = require("axios");
+const { HttpStatusCode } = require("axios");
 const {
   addLocation,
   getAllLocations,

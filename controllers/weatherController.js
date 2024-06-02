@@ -19,8 +19,7 @@ exports.weatherHistory = async (req, res, next) => {
 
     const weatherHistory = await weatherService.getWeatherHistory(
       id,
-      summaryDays,
-      res
+      summaryDays
     );
     res.status(HttpStatusCode.Ok).json(weatherHistory);
   } catch (error) {

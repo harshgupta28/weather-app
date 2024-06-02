@@ -1,5 +1,5 @@
-const { HttpStatusCode } = require("axios");
 const moment = require("moment");
+const mongoose = require("mongoose");
 
 function dateXDaysOlder(daysOlder, format) {
   const date = new Date();
@@ -7,16 +7,12 @@ function dateXDaysOlder(daysOlder, format) {
   return moment(date).format(format);
 }
 
-function throwInvalidLocationError(id, res) {
-  const errorMessage = `Location not found`;
-
-  res.status(HttpStatusCode.BadRequest).json({ error: errorMessage });
-  logger.error(` Location not found for id: ${id}`);
-
-  throw new Error(errorMessage);
-}
-
-module.exports = {
-  throwInvalidLocationError,
-  dateXDaysOlder,
+const isValidObjectId = (id) => {
+  return mongoose.Types.ObjectId.isValid(id);
 };
+
+const isPositiveInteger = (number) => {
+  return Number.isInteger(number) && number > 0;
+};
+
+module.exports = { dateXDaysOlder, isValidObjectId };
