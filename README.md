@@ -4,6 +4,7 @@
 The Real-time Weather Forecast API is a RESTful service that allows users to manage locations and retrieve real-time weather forecasts for specified locations. The API integrates with an external weather service to fetch current weather data and supports operations for adding, retrieving, updating, and deleting locations.
 
 *Features*
+
     Location Management:
         Add Location        : Add a new location with name, latitude, and longitude.
         Retrieve Locations  : Get all locations or a specific location by ID.
@@ -17,6 +18,7 @@ The Real-time Weather Forecast API is a RESTful service that allows users to man
         Retrieve historical weather data summaries for the last 7, 15, and 30 days.
 
 *Endpoints (Postman collection is added)*
+
     /locations (GET, POST):
         GET    - Retrieve all locations.
         POST   - Add a new location.
@@ -31,6 +33,7 @@ The Real-time Weather Forecast API is a RESTful service that allows users to man
 
 
 *Technical Details*
+
     External Weather Service Integration:
         Fetches real-time weather data using external APIs (e.g., OpenWeatherMap, WeatherAPI) based on location coordinates.
 
